@@ -36,13 +36,16 @@ import org.osjava.datasource.SJDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.ConnectionBuilder;
+import java.sql.ShardingKeyBuilder;
 import java.util.Properties;
 
 public class SJDataSourceConverter implements ConverterIF {
 
     private static Logger LOGGER = LoggerFactory.getLogger(SJDataSourceConverter.class);
 
-    public Object convert(Properties properties, String type) {
+    @SuppressWarnings("unchecked")
+	public Object convert(Properties properties, String type) {
         String driverName = properties.getProperty("driver");
         String url = properties.getProperty("url");
         String user = properties.getProperty("user");
@@ -64,8 +67,25 @@ public class SJDataSourceConverter implements ConverterIF {
             LOGGER.error("Incomplete arguments provided: properties={} type={}", properties, type);
             throw new IllegalArgumentException("Required subelement 'password'");
         }
-        // IMPROVE Make Simple-JNDI independant from org.osjava.datasource
-        return new SJDataSource(driverName, url, user, password, properties);
+        // IMPROVE Make Simple-JNDI independent from org.osjava.datasource
+        SJDataSource dataSource = new SJDataSource(driverName, url, user, password, properties);
+        
+        String connectionBuilderName = properties.getProperty("connectionBuilder");
+        if (connectionBuilderName != null)
+			try {
+				dataSource.setConnectionBuilderClass((Class<? extends ConnectionBuilder>)Class.forName(connectionBuilderName));
+			} catch (ClassNotFoundException e) {
+	            throw new IllegalArgumentException("Unable to find class for connectionBuilder '"+connectionBuilderName+"'");
+			}
+        String shardingKeyBuilderName = properties.getProperty("shardingKeyBuilder");
+        if (shardingKeyBuilderName != null)
+			try {
+				dataSource.setShardingKeyBuilderClass((Class<? extends ShardingKeyBuilder>)Class.forName(shardingKeyBuilderName));
+			} catch (ClassNotFoundException e) {
+	            throw new IllegalArgumentException("Unable to find class for shardingKeyBuilder '"+shardingKeyBuilderName+"'");
+			}
+        
+        return dataSource;
     }
 
 }

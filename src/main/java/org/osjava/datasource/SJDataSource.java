@@ -32,25 +32,30 @@
 
 package org.osjava.datasource;
 
-import javax.sql.DataSource;
 import java.io.PrintWriter;
+import java.lang.reflect.Constructor;
 import java.sql.Connection;
+import java.sql.ConnectionBuilder;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
+import java.sql.ShardingKeyBuilder;
 import java.util.Properties;
 import java.util.logging.Logger;
+
+import javax.sql.DataSource;
 
 /**
  * A basic implementation of a DataSource with optional connection pooling.
  */
 public class SJDataSource implements DataSource {
-
     private PrintWriter printWriter;
     private String username;
     private String password;
     private String url;
     private String driverName;
+    private Class<? extends ConnectionBuilder> connectionBuilderClass;
+    private Class<? extends ShardingKeyBuilder> shardingKeyBuilderClass;
 
     // for pooling
     private Properties properties;
@@ -69,14 +74,43 @@ public class SJDataSource implements DataSource {
         this.password = password;
         this.properties = properties;
     }
+    
+    @Override
+    public ConnectionBuilder createConnectionBuilder() throws SQLException {
+    	if (connectionBuilderClass != null) {
+			Constructor<? extends ConnectionBuilder> constructor;
+			try {
+				constructor = connectionBuilderClass.getConstructor(SJDataSource.class);
+				return constructor.newInstance(this);
+			} catch (Exception e) {
+				throw new SQLException("Unable to create ConnectionBuilder for '"+connectionBuilderClass.getName()+"': "+e.getMessage(),e);
+			}
+    	}
+    		
+    	return new SJConnectionBuilder(this).user(username).password(password);
+    }
+    
+    @Override
+    public ShardingKeyBuilder createShardingKeyBuilder() throws SQLException {
+    	if (shardingKeyBuilderClass != null) {
+			Constructor<? extends ShardingKeyBuilder> constructor;
+			try {
+				constructor = shardingKeyBuilderClass.getConstructor();
+				return constructor.newInstance();
+			} catch (Exception e) {
+				throw new SQLException("Unable to create ShardingKeyBuilder for '"+shardingKeyBuilderClass.getName()+"': "+e.getMessage(),e);
+			}
+    	}
+    	
+    	return new SJShardingKeyBuilder();
+    }
 
     // Method from Apache Commons DbUtils
     private static boolean ensureLoaded(String name) {
         try {
             Class.forName(name).newInstance();
             return true;
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             return false;
         }
     }
@@ -101,8 +135,7 @@ public class SJDataSource implements DataSource {
                 }
             }
             return getConnection(username, password, poolUrl);
-        }
-        else {
+        } else {
             return getConnection(username, password, url);
         }
     }
@@ -110,8 +143,7 @@ public class SJDataSource implements DataSource {
     private Connection getConnection(String username, String password, String tmpUrl) throws SQLException {
         if (username == null || password == null) {
             return DriverManager.getConnection(tmpUrl);
-        }
-        else {
+        } else {
             return DriverManager.getConnection(tmpUrl, username, password);
         }
     }
@@ -168,6 +200,21 @@ public class SJDataSource implements DataSource {
     public Logger getParentLogger() throws SQLFeatureNotSupportedException {
         throw new SQLFeatureNotSupportedException("This class does not support this operation.");
     }
-
+    
+    public Properties getProperties() {
+		return properties;
+	}
+    
+    public String getUrl() {
+		return url;
+	}
+    
+    public void setConnectionBuilderClass(Class<? extends ConnectionBuilder> connectionBuilderClass) {
+		this.connectionBuilderClass = connectionBuilderClass;
+	}
+    
+    public void setShardingKeyBuilderClass(Class<? extends ShardingKeyBuilder> shardingKeyBuilderClass) {
+		this.shardingKeyBuilderClass = shardingKeyBuilderClass;
+	}
 }
 
