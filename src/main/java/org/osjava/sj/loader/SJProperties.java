@@ -32,11 +32,17 @@
 
 package org.osjava.sj.loader;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Enumeration;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Properties;
+import java.util.Set;
+
 import org.apache.commons.lang.text.StrLookup;
 import org.apache.commons.lang.text.StrSubstitutor;
 import org.jetbrains.annotations.NotNull;
-
-import java.util.*;
 
 /**
  * To extract configuration from different file formats, e. g. .xml and .ini files, and not only from property files.
@@ -47,7 +53,8 @@ public class SJProperties extends Properties {
     // our index for the ordering
     protected ArrayList index = new ArrayList();
     
-    private final StrSubstitutor substitutor;
+    private final StrSubstitutor systemPropertySubstitutor;
+    private final StrSubstitutor environmentVariableSubstitutor;
 
     SJProperties() {
         this(null);
@@ -60,8 +67,8 @@ public class SJProperties extends Properties {
      */
     SJProperties(Properties defaults) {
         super(defaults);
-        substitutor = new StrSubstitutor(StrLookup.systemPropertiesLookup());
-        substitutor.setVariablePrefix("${sj.sys:");
+        systemPropertySubstitutor = new StrSubstitutor(StrLookup.systemPropertiesLookup());
+        environmentVariableSubstitutor = new StrSubstitutor(StrLookup.mapLookup(System.getenv()));
     }
 
     public void setDelimiter(String delimiter) {
@@ -75,7 +82,8 @@ public class SJProperties extends Properties {
     @Override
     public synchronized Object put(Object key, Object value) {
         if (value instanceof String) {
-            value = substitutor.replace(value);
+            value = systemPropertySubstitutor.replace(value);
+            value = environmentVariableSubstitutor.replace(value);
         }
         if(index.contains(key)) {
             Object obj = get(key);
