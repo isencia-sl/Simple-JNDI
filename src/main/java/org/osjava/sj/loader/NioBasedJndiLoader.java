@@ -1,20 +1,28 @@
 package org.osjava.sj.loader;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.ArrayList;
+import java.util.Hashtable;
+import java.util.Map;
+import java.util.Properties;
+
+import javax.naming.Context;
+import javax.naming.NamingException;
+
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.naming.Context;
-import javax.naming.NamingException;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.*;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.util.ArrayList;
-import java.util.Hashtable;
-import java.util.Properties;
 
 /**
  * @author Holger Thurow (thurow.h@gmail.com)
@@ -50,7 +58,7 @@ public class NioBasedJndiLoader extends JndiLoader {
      */
     public void loadJar(File jarFile, String rootDir, Context ctxt, boolean preserveFileNameAsContextName) throws IOException {
         Path path = Paths.get(jarFile.toURI());
-        try (FileSystem fs = FileSystems.newFileSystem(path, null)) {
+        try (FileSystem fs = FileSystems.newFileSystem(path,(Map<String,?>)null)) {
             Files.walkFileTree(fs.getPath(rootDir), new MySimpleFileVisitor(rootDir, ctxt, "", preserveFileNameAsContextName));
         }
     }

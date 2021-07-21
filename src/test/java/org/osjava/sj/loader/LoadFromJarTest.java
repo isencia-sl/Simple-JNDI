@@ -15,6 +15,7 @@ import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Enumeration;
 import java.util.Hashtable;
+import java.util.Map;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.zip.ZipEntry;
@@ -55,7 +56,7 @@ public class LoadFromJarTest {
         File jarFile = new File("src/test/simple-jndi-0.17.3-tests.jar");
 
         Path path = Paths.get(jarFile.toURI());
-        FileSystem fs = FileSystems.newFileSystem(path, null);
+        FileSystem fs = FileSystems.newFileSystem(path,(Map<String,?>)null);
         DirectoryStream<Path> directoryStream = Files.newDirectoryStream(fs.getPath("/roots"));
         for(Path p: directoryStream){
             System.out.println(p);
@@ -71,7 +72,7 @@ public class LoadFromJarTest {
         File file = new File("src/test/simple-jndi-0.17.3-tests.jar");
         JarFile jar = new JarFile(file);
         Path path = Paths.get(file.toURI());
-        try (FileSystem fs = FileSystems.newFileSystem(path, null)) {
+        try (FileSystem fs = FileSystems.newFileSystem(path,(Map<String,?>)null)) {
 //            String rootDir = "/root";
             String rootDir = "/roots";
             // Liest nicht auch die sub dirs
@@ -111,7 +112,7 @@ public class LoadFromJarTest {
     public void jaredRoot3() throws IOException {
         File file = new File("src/test/simple-jndi-0.17.3-tests.jar");
         Path path = Paths.get(file.toURI());
-        try (FileSystem fs = FileSystems.newFileSystem(path, null)) {
+        try (FileSystem fs = FileSystems.newFileSystem(path,(Map<String,?>)null)) {
             String rootDir = "/roots/untypedProperty";
 //            String rootDir = "/";
 
