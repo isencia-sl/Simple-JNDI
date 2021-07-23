@@ -32,127 +32,125 @@
 
 package org.osjava.datasource;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
+import java.sql.Connection;
 import java.sql.ConnectionBuilder;
 import java.sql.SQLException;
+import java.sql.SQLFeatureNotSupportedException;
 import java.sql.ShardingKeyBuilder;
-import java.util.Map.Entry;
+import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Logger;
 
-import org.apache.commons.dbcp2.BasicDataSource;
+import javax.sql.DataSource;
 
 /**
  * A basic implementation of a DataSource with optional connection pooling.
  */
-public class SJDataSource extends BasicDataSource {
-    private Class<? extends ConnectionBuilder> connectionBuilderClass;
-    private Class<? extends ShardingKeyBuilder> shardingKeyBuilderClass;
+public class SJDataSource implements DataSource {
+	private Properties properties;
+	private String url;
+	private String poolname;
+	private boolean useSharding = false;
+	private Map<String,DataSource> poolDataSources = new ConcurrentHashMap<>(5,0.9F,1);
+    private volatile PrintWriter logWriter = new PrintWriter(new OutputStreamWriter(System.out,StandardCharsets.UTF_8));
     
-    public SJDataSource(BasicDataSource source) throws Exception {
-    	// call all setters used in BasicDataSoureFactory.createDataSource()
-    	setDefaultAutoCommit(source.getDefaultAutoCommit());
-    	setDefaultReadOnly(source.getDefaultReadOnly());
-    	setDefaultTransactionIsolation(source.getDefaultTransactionIsolation());
-    	setDefaultCatalog(source.getDefaultCatalog());
-    	setDefaultSchema(source.getDefaultSchema());
-    	setCacheState(source.getCacheState());
-    	setDriverClassName(source.getDriverClassName());
-    	setLifo(source.getLifo());
-    	setMaxTotal(source.getMaxTotal());
-    	setMaxIdle(source.getMaxIdle());
-    	setMinIdle(source.getMinIdle());
-    	setInitialSize(source.getInitialSize());
-    	setMaxWaitMillis(source.getMaxWaitMillis());
-    	setTestOnCreate(source.getTestOnCreate());
-    	setTestOnBorrow(source.getTestOnBorrow());
-    	setTestOnReturn(source.getTestOnReturn());
-    	setTimeBetweenEvictionRunsMillis(source.getTimeBetweenEvictionRunsMillis());
-    	setNumTestsPerEvictionRun(source.getNumTestsPerEvictionRun());
-    	setMinEvictableIdleTimeMillis(source.getMinEvictableIdleTimeMillis());
-    	setSoftMinEvictableIdleTimeMillis(source.getSoftMinEvictableIdleTimeMillis());
-    	setEvictionPolicyClassName(source.getEvictionPolicyClassName());
-    	setTestWhileIdle(source.getTestWhileIdle());
-    	setPassword(source.getPassword());
-    	setUrl(source.getUrl());
-    	setUsername(source.getUsername());
-    	setValidationQuery(source.getValidationQuery());
-    	setValidationQueryTimeout(source.getValidationQueryTimeout());
-    	setAccessToUnderlyingConnectionAllowed(source.isAccessToUnderlyingConnectionAllowed());
-    	setRemoveAbandonedOnBorrow(source.getRemoveAbandonedOnBorrow());
-    	setRemoveAbandonedOnMaintenance(source.getRemoveAbandonedOnMaintenance());
-    	setRemoveAbandonedTimeout(source.getRemoveAbandonedTimeout());
-    	setLogAbandoned(source.getLogAbandoned());
-    	setAbandonedUsageTracking(source.getAbandonedUsageTracking());
-    	setPoolPreparedStatements(source.getAbandonedUsageTracking());
-    	setClearStatementPoolOnReturn(source.isClearStatementPoolOnReturn());
-    	setMaxOpenPreparedStatements(source.getDefaultTransactionIsolation());
-    	setConnectionInitSqls(source.getConnectionInitSqls());
+    public SJDataSource(Properties properties) {
+    	this.properties = properties;
     	
-    	// connectionProperties are not publicly accessible in BasicDataSource
-    	Properties connectionProperties = null;
-    	try {
-    		Field propertiesField = BasicDataSource.class.getDeclaredField("connectionProperties");
-    		propertiesField.trySetAccessible();
-    		connectionProperties = (Properties)propertiesField.get(source);
-    	} catch (Exception e) {
-    		// ignore failure to access field (should not occur)
-    	}
-    	if (connectionProperties != null)
-    		for (Entry<Object,Object> entry : connectionProperties.entrySet())
-    			addConnectionProperty((String)entry.getKey(),(String)entry.getValue());
-    	
-    	setMaxConnLifetimeMillis(source.getMaxConnLifetimeMillis());
-    	setLogExpiredConnections(source.getLogExpiredConnections());
-    	setJmxName(source.getJmxName());
-    	setAutoCommitOnReturn(source.getAutoCommitOnReturn());
-    	setRollbackOnReturn(source.getRollbackOnReturn());
-    	setDefaultQueryTimeout(source.getDefaultQueryTimeout());
-    	setFastFailValidation(source.getFastFailValidation());
-    	setDisconnectionSqlCodes(source.getDisconnectionSqlCodes());
-    	setConnectionFactoryClassName(source.getConnectionFactoryClassName());
-
-    	// make sure that initialSize connections are created
-    	if (getInitialSize() > 0)
-    		createDataSource();
-	}
+    	url = properties.getProperty("url");
+    	if (url == null || url.isEmpty())
+    		throw new IllegalArgumentException("No valid url is defined in the JNDI connection properties !");
+    	poolname = properties.getProperty("poolname");
+    	if (poolname == null || poolname.isEmpty())
+    		throw new IllegalArgumentException("No valid poolname is defined in the JNDI connection properties !");
+	
+    	String driverClassName = properties.getProperty("driverClassName");
+    	if (driverClassName == null || driverClassName.isEmpty())
+    		throw new IllegalArgumentException("No valid driverClassName is defined in the JNDI connection properties !");
+    
+    	String useSharding = properties.getProperty("useSharding");
+    	if (useSharding != null)
+    		this.useSharding = useSharding.equalsIgnoreCase("true");
+    }
     
     @Override
     public ConnectionBuilder createConnectionBuilder() throws SQLException {
-    	if (connectionBuilderClass != null) {
-			Constructor<? extends ConnectionBuilder> constructor;
-			try {
-				constructor = connectionBuilderClass.getConstructor(SJDataSource.class);
-				return constructor.newInstance(this);
-			} catch (Exception e) {
-				throw new SQLException("Unable to create ConnectionBuilder for '"+connectionBuilderClass.getName()+"': "+e.getMessage(),e);
-			}
-    	}
-    		
-    	return new SJConnectionBuilder(this).user(getUsername()).password(getPassword());
+   		return new SJConnectionBuilder(this);
     }
     
     @Override
     public ShardingKeyBuilder createShardingKeyBuilder() throws SQLException {
-    	if (shardingKeyBuilderClass != null) {
-			Constructor<? extends ShardingKeyBuilder> constructor;
-			try {
-				constructor = shardingKeyBuilderClass.getConstructor();
-				return constructor.newInstance();
-			} catch (Exception e) {
-				throw new SQLException("Unable to create ShardingKeyBuilder for '"+shardingKeyBuilderClass.getName()+"': "+e.getMessage(),e);
-			}
-    	}
-    	
+    	if (!useSharding)
+    		throw new SQLFeatureNotSupportedException("This datasource does not use sharding !");
     	return new SJShardingKeyBuilder();
     }
     
-    public void setConnectionBuilderClass(Class<? extends ConnectionBuilder> connectionBuilderClass) {
-		this.connectionBuilderClass = connectionBuilderClass;
+    @Override
+	public Connection getConnection() throws SQLException {
+		return createConnectionBuilder().build();
 	}
     
-    public void setShardingKeyBuilderClass(Class<? extends ShardingKeyBuilder> shardingKeyBuilderClass) {
-		this.shardingKeyBuilderClass = shardingKeyBuilderClass;
+    @Override
+	public Connection getConnection(String username, String password) throws SQLException {
+        throw new UnsupportedOperationException("Not supported by SJDataSource");
+	}
+    
+    public Map<String, DataSource> getPoolDataSources() {
+		return poolDataSources;
+	}
+
+	@Override
+	public int getLoginTimeout() throws SQLException {
+        throw new UnsupportedOperationException("Not supported by SJDataSource");
+	}
+
+	@Override
+	public PrintWriter getLogWriter() throws SQLException {
+		return logWriter;
+	}
+
+	@Override
+	public Logger getParentLogger() throws SQLFeatureNotSupportedException {
+        throw new SQLFeatureNotSupportedException();
+	}
+	
+	public String getPoolname() {
+		return poolname;
+	}
+	
+	public Properties getProperties() {
+		return properties;
+	}
+	
+	public String getUrl() {
+		return url;
+	}
+
+	@Override
+	public boolean isWrapperFor(Class<?> iface) throws SQLException {
+		return false;
+	}
+
+	@Override
+	public void setLoginTimeout(int seconds) throws SQLException {
+        throw new UnsupportedOperationException("Not supported by SJDataSource");
+	}
+
+	@Override
+	public void setLogWriter(PrintWriter out) throws SQLException {
+		this.logWriter = logWriter;
+		
+		for (DataSource dataSource : poolDataSources.values())
+			dataSource.setLogWriter(out);
+	}
+
+	@Override
+	public <T> T unwrap(Class<T> iface) throws SQLException {
+        throw new SQLException("SJDataSource is not a wrapper.");
 	}
 }
 

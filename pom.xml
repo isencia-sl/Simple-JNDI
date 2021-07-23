@@ -5,7 +5,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.github.h-thurow</groupId>
 	<artifactId>simple-jndi</artifactId>
-	<version>0.23.1</version>
+	<version>1.0.0</version>
 	<name>${project.groupId}:${project.artifactId}</name>
 	<description>
         An in-memory implementation of JNDI, so no server
@@ -50,6 +50,13 @@
 		<developer>
 			<name>Holger Thurow</name>
 			<email>thurow.h@gmail.com</email>
+			<roles>
+				<role>Developer</role>
+			</roles>
+		</developer>
+		<developer>
+			<name>Jan Vermeulen</name>
+			<email>jan.vermeulen@isencia.com</email>
 			<roles>
 				<role>Developer</role>
 			</roles>

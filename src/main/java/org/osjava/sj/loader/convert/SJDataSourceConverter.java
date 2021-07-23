@@ -32,42 +32,12 @@
 
 package org.osjava.sj.loader.convert;
 
-import java.sql.ConnectionBuilder;
-import java.sql.ShardingKeyBuilder;
 import java.util.Properties;
 
-import org.apache.commons.dbcp2.BasicDataSource;
-import org.apache.commons.dbcp2.BasicDataSourceFactory;
 import org.osjava.datasource.SJDataSource;
 
 public class SJDataSourceConverter implements ConverterIF {
-
-    @SuppressWarnings("unchecked")
 	public Object convert(Properties properties, String type) {
-    	SJDataSource dataSource;
-    	try {
-    		BasicDataSource basicDataSource = BasicDataSourceFactory.createDataSource(properties);
-    		dataSource = new SJDataSource(basicDataSource);
-    	} catch (Exception e) {
-            throw new IllegalArgumentException("Unable to create DataSource based on given properties: "+e.getMessage(),e);
-    	}
-    	
-        String connectionBuilderName = properties.getProperty("connectionBuilder");
-        if (connectionBuilderName != null)
-			try {
-				dataSource.setConnectionBuilderClass((Class<? extends ConnectionBuilder>)Class.forName(connectionBuilderName));
-			} catch (ClassNotFoundException e) {
-	            throw new IllegalArgumentException("Unable to find class for connectionBuilder '"+connectionBuilderName+"'");
-			}
-        String shardingKeyBuilderName = properties.getProperty("shardingKeyBuilder");
-        if (shardingKeyBuilderName != null)
-			try {
-				dataSource.setShardingKeyBuilderClass((Class<? extends ShardingKeyBuilder>)Class.forName(shardingKeyBuilderName));
-			} catch (ClassNotFoundException e) {
-	            throw new IllegalArgumentException("Unable to find class for shardingKeyBuilder '"+shardingKeyBuilderName+"'");
-			}
-        
-        return dataSource;
+   		return new SJDataSource(properties);
     }
-
 }

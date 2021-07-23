@@ -2,4 +2,3 @@ Import-Package: org.apache.commons.dbcp.*;resolution:=optional,\
  org.apache.commons.pool.*;resolution:=optional,*
 
 Export-Package: org.osjava.*;-noimport:=true
-DynamicImport-Package: *

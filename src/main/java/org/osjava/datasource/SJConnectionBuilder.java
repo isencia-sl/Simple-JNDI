@@ -2,21 +2,22 @@ package org.osjava.datasource;
 
 import java.sql.Connection;
 import java.sql.ConnectionBuilder;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.ShardingKey;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
+import javax.sql.DataSource;
+
+import org.apache.commons.dbcp2.BasicDataSourceFactory;
 import org.apache.commons.lang.text.StrSubstitutor;
 
 public class SJConnectionBuilder implements ConnectionBuilder {
 	private SJDataSource dataSource;
-	private String username;
-	private String password;
-	private ShardingKey shardingKey;
-	private Map<String, String> poolUrls = null;
+	private String username = null;
+	private String password = null;
+	private ShardingKey shardingKey = null;
 
 	public SJConnectionBuilder(SJDataSource dataSource) {
 		this.dataSource = dataSource;
@@ -49,6 +50,9 @@ public class SJConnectionBuilder implements ConnectionBuilder {
 
 	@Override
 	public Connection build() throws SQLException {
+		String url = dataSource.getUrl();
+		String poolname = dataSource.getPoolname();
+		
 		// replace shardingKey in URL if it is referenced
 		if (shardingKey != null) {
 			Map<String, String> substitutes = new HashMap<>();
@@ -56,29 +60,30 @@ public class SJConnectionBuilder implements ConnectionBuilder {
 			String substitutedUrl = StrSubstitutor.replace(url, substitutes);
 			if (substitutedUrl != url && !substitutedUrl.equals(url)) {
 				url = substitutedUrl;
-				// if we have a unique URL per shardingKey and pooling is requested, use that
-				// key as the poolName
-				if (pool != null)
-					pool = shardingKey.toString();
+				// if we have a unique URL per shardingKey, use that key as the poolname
+				poolname = shardingKey.toString();
 			}
 		}
 
-		if (pool != null) { // we want a connection name named like the pool property
-			if (poolUrls == null)
-				poolUrls = new HashMap<>();
-			String poolUrl = poolUrls.get(pool);
-			synchronized (SJDataSource.class) {
-				if (poolUrl == null) { // we didn't create a connection pool already, so do it now
-					PoolSetup.setupConnection(pool, url, username, password, properties);
-					poolUrls.put(pool, poolUrl = PoolSetup.getUrl(pool));
-				}
+		// lookup (or create) the BasicDataSource for the resolved poolname 
+		Map<String,DataSource> poolDataSources = dataSource.getPoolDataSources();
+		DataSource poolDataSource = poolDataSources.get(poolname);
+		if (poolDataSource == null) {
+			Properties properties = new Properties(dataSource.getProperties());
+			properties.put("url",url);
+			if (username != null)
+				properties.put("username",username);
+			if (password != null)
+				properties.put("password",password);
+			try {
+				poolDataSource = BasicDataSourceFactory.createDataSource(dataSource.getProperties());
+			} catch (Exception e) {
+				throw new SQLException("Unable to create DataSource for '"+poolname+"': "+e.getMessage(),e);
 			}
-			url = poolUrl; // url is now a pooling link
+			poolDataSource.setLogWriter(dataSource.getLogWriter());
+			poolDataSources.put(poolname,poolDataSource);
 		}
 
-		if (username == null || password == null)
-			return DriverManager.getConnection(url);
-
-		return DriverManager.getConnection(url, username, password);
+		return poolDataSource.getConnection();
 	}
 }
