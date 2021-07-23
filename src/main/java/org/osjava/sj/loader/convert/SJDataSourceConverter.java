@@ -32,44 +32,26 @@
 
 package org.osjava.sj.loader.convert;
 
-import org.osjava.datasource.SJDataSource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.sql.ConnectionBuilder;
 import java.sql.ShardingKeyBuilder;
 import java.util.Properties;
 
-public class SJDataSourceConverter implements ConverterIF {
+import org.apache.commons.dbcp2.BasicDataSource;
+import org.apache.commons.dbcp2.BasicDataSourceFactory;
+import org.osjava.datasource.SJDataSource;
 
-    private static Logger LOGGER = LoggerFactory.getLogger(SJDataSourceConverter.class);
+public class SJDataSourceConverter implements ConverterIF {
 
     @SuppressWarnings("unchecked")
 	public Object convert(Properties properties, String type) {
-        String driverName = properties.getProperty("driver");
-        String url = properties.getProperty("url");
-        String user = properties.getProperty("user");
-        String password = properties.getProperty("password");
-
-        if (driverName == null) {
-            LOGGER.error("Incomplete arguments provided: properties={} type={}", properties, type);
-            throw new IllegalArgumentException("Required subelement 'driver'");
-        }
-        if (url == null) {
-            LOGGER.error("Incomplete arguments provided: properties={} type={}", properties, type);
-            throw new IllegalArgumentException("Required subelement 'url'");
-        }
-        if (user == null) {
-            LOGGER.error("Incomplete arguments provided: properties={} type={}", properties, type);
-            throw new IllegalArgumentException("Required subelement 'user'");
-        }
-        if (password == null) {
-            LOGGER.error("Incomplete arguments provided: properties={} type={}", properties, type);
-            throw new IllegalArgumentException("Required subelement 'password'");
-        }
-        // IMPROVE Make Simple-JNDI independent from org.osjava.datasource
-        SJDataSource dataSource = new SJDataSource(driverName, url, user, password, properties);
-        
+    	SJDataSource dataSource;
+    	try {
+    		BasicDataSource basicDataSource = BasicDataSourceFactory.createDataSource(properties);
+    		dataSource = new SJDataSource(basicDataSource);
+    	} catch (Exception e) {
+            throw new IllegalArgumentException("Unable to create DataSource based on given properties: "+e.getMessage(),e);
+    	}
+    	
         String connectionBuilderName = properties.getProperty("connectionBuilder");
         if (connectionBuilderName != null)
 			try {

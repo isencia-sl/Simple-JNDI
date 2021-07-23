@@ -32,48 +32,90 @@
 
 package org.osjava.datasource;
 
-import java.io.PrintWriter;
 import java.lang.reflect.Constructor;
-import java.sql.Connection;
+import java.lang.reflect.Field;
 import java.sql.ConnectionBuilder;
-import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.sql.SQLFeatureNotSupportedException;
 import java.sql.ShardingKeyBuilder;
+import java.util.Map.Entry;
 import java.util.Properties;
-import java.util.logging.Logger;
 
-import javax.sql.DataSource;
+import org.apache.commons.dbcp2.BasicDataSource;
 
 /**
  * A basic implementation of a DataSource with optional connection pooling.
  */
-public class SJDataSource implements DataSource {
-    private PrintWriter printWriter;
-    private String username;
-    private String password;
-    private String url;
-    private String driverName;
+public class SJDataSource extends BasicDataSource {
     private Class<? extends ConnectionBuilder> connectionBuilderClass;
     private Class<? extends ShardingKeyBuilder> shardingKeyBuilderClass;
+    
+    public SJDataSource(BasicDataSource source) throws Exception {
+    	// call all setters used in BasicDataSoureFactory.createDataSource()
+    	setDefaultAutoCommit(source.getDefaultAutoCommit());
+    	setDefaultReadOnly(source.getDefaultReadOnly());
+    	setDefaultTransactionIsolation(source.getDefaultTransactionIsolation());
+    	setDefaultCatalog(source.getDefaultCatalog());
+    	setDefaultSchema(source.getDefaultSchema());
+    	setCacheState(source.getCacheState());
+    	setDriverClassName(source.getDriverClassName());
+    	setLifo(source.getLifo());
+    	setMaxTotal(source.getMaxTotal());
+    	setMaxIdle(source.getMaxIdle());
+    	setMinIdle(source.getMinIdle());
+    	setInitialSize(source.getInitialSize());
+    	setMaxWaitMillis(source.getMaxWaitMillis());
+    	setTestOnCreate(source.getTestOnCreate());
+    	setTestOnBorrow(source.getTestOnBorrow());
+    	setTestOnReturn(source.getTestOnReturn());
+    	setTimeBetweenEvictionRunsMillis(source.getTimeBetweenEvictionRunsMillis());
+    	setNumTestsPerEvictionRun(source.getNumTestsPerEvictionRun());
+    	setMinEvictableIdleTimeMillis(source.getMinEvictableIdleTimeMillis());
+    	setSoftMinEvictableIdleTimeMillis(source.getSoftMinEvictableIdleTimeMillis());
+    	setEvictionPolicyClassName(source.getEvictionPolicyClassName());
+    	setTestWhileIdle(source.getTestWhileIdle());
+    	setPassword(source.getPassword());
+    	setUrl(source.getUrl());
+    	setUsername(source.getUsername());
+    	setValidationQuery(source.getValidationQuery());
+    	setValidationQueryTimeout(source.getValidationQueryTimeout());
+    	setAccessToUnderlyingConnectionAllowed(source.isAccessToUnderlyingConnectionAllowed());
+    	setRemoveAbandonedOnBorrow(source.getRemoveAbandonedOnBorrow());
+    	setRemoveAbandonedOnMaintenance(source.getRemoveAbandonedOnMaintenance());
+    	setRemoveAbandonedTimeout(source.getRemoveAbandonedTimeout());
+    	setLogAbandoned(source.getLogAbandoned());
+    	setAbandonedUsageTracking(source.getAbandonedUsageTracking());
+    	setPoolPreparedStatements(source.getAbandonedUsageTracking());
+    	setClearStatementPoolOnReturn(source.isClearStatementPoolOnReturn());
+    	setMaxOpenPreparedStatements(source.getDefaultTransactionIsolation());
+    	setConnectionInitSqls(source.getConnectionInitSqls());
+    	
+    	// connectionProperties are not publicly accessible in BasicDataSource
+    	Properties connectionProperties = null;
+    	try {
+    		Field propertiesField = BasicDataSource.class.getDeclaredField("connectionProperties");
+    		propertiesField.trySetAccessible();
+    		connectionProperties = (Properties)propertiesField.get(source);
+    	} catch (Exception e) {
+    		// ignore failure to access field (should not occur)
+    	}
+    	if (connectionProperties != null)
+    		for (Entry<Object,Object> entry : connectionProperties.entrySet())
+    			addConnectionProperty((String)entry.getKey(),(String)entry.getValue());
+    	
+    	setMaxConnLifetimeMillis(source.getMaxConnLifetimeMillis());
+    	setLogExpiredConnections(source.getLogExpiredConnections());
+    	setJmxName(source.getJmxName());
+    	setAutoCommitOnReturn(source.getAutoCommitOnReturn());
+    	setRollbackOnReturn(source.getRollbackOnReturn());
+    	setDefaultQueryTimeout(source.getDefaultQueryTimeout());
+    	setFastFailValidation(source.getFastFailValidation());
+    	setDisconnectionSqlCodes(source.getDisconnectionSqlCodes());
+    	setConnectionFactoryClassName(source.getConnectionFactoryClassName());
 
-    // for pooling
-    private Properties properties;
-
-    /**
-     * if a connection pool has been built, its url is stored in here
-     */
-    private String poolUrl = null;
-
-    public SJDataSource(String driverName, String url, String username, String password, Properties properties) {
-        ensureLoaded(driverName);
-        this.driverName = driverName;
-        this.url = url;
-        this.printWriter = new PrintWriter(System.err);
-        this.username = username;
-        this.password = password;
-        this.properties = properties;
-    }
+    	// make sure that initialSize connections are created
+    	if (getInitialSize() > 0)
+    		createDataSource();
+	}
     
     @Override
     public ConnectionBuilder createConnectionBuilder() throws SQLException {
@@ -87,7 +129,7 @@ public class SJDataSource implements DataSource {
 			}
     	}
     		
-    	return new SJConnectionBuilder(this).user(username).password(password);
+    	return new SJConnectionBuilder(this).user(getUsername()).password(getPassword());
     }
     
     @Override
@@ -104,110 +146,6 @@ public class SJDataSource implements DataSource {
     	
     	return new SJShardingKeyBuilder();
     }
-
-    // Method from Apache Commons DbUtils
-    private static boolean ensureLoaded(String name) {
-        try {
-            Class.forName(name).newInstance();
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    /**
-     * @see SJDataSource#getConnection(String, String)
-     */
-    public Connection getConnection() throws SQLException {
-        return this.getConnection(this.username, this.password);
-    }
-
-    /**
-     * With every call a new connection is returned unless property "pool" was set.
-     */
-    public Connection getConnection(String username, String password) throws SQLException {
-        String poolName = properties.getProperty("pool");
-        if (poolName != null) {  // we want a connection name named like the pool property
-            synchronized (SJDataSource.class) {
-                if (poolUrl == null) {  // we didn't create a connection pool already, so do it now
-                    PoolSetup.setupConnection(poolName, url, username, password, properties);
-                    poolUrl = PoolSetup.getUrl(poolName);
-                }
-            }
-            return getConnection(username, password, poolUrl);
-        } else {
-            return getConnection(username, password, url);
-        }
-    }
-
-    private Connection getConnection(String username, String password, String tmpUrl) throws SQLException {
-        if (username == null || password == null) {
-            return DriverManager.getConnection(tmpUrl);
-        } else {
-            return DriverManager.getConnection(tmpUrl, username, password);
-        }
-    }
-
-    public PrintWriter getLogWriter() throws SQLException {
-        return printWriter;
-    }
-
-    public int getLoginTimeout() throws SQLException {
-        return 0;
-    }
-
-    public void setLogWriter(PrintWriter pw) throws SQLException {
-        this.printWriter = pw;
-    }
-
-    public void setLoginTimeout(int timeout) throws SQLException {
-        // ignored
-    }
-
-    public String toString() {
-        return driverName + "::::" + url + "::::" + username;
-    }
-
-    public boolean equals(Object obj) {
-        if (obj == null) {
-            return false;
-        }
-        if (obj.getClass() != this.getClass()) {
-            return false;
-        }
-        SJDataSource other = (SJDataSource) obj;
-
-        return other.url.equals(this.url) &&
-                other.driverName.equals(this.driverName) &&
-                other.username.equals(this.username);
-    }
-
-    public int hashCode() {
-        return this.url.hashCode() & this.username.hashCode() & this.driverName.hashCode();
-    }
-
-    // Added by JDK 1.6 via java.sql.Wrapper
-    public boolean isWrapperFor(Class<?> iface) throws SQLException {
-        return false;
-    }
-
-    // Added by JDK 1.6 via java.sql.Wrapper
-    public <T> T unwrap(Class<T> iface) throws SQLException {
-        throw new SQLException("This object is not a wrapper");
-    }
-
-    // Patch for Java 1.7
-    public Logger getParentLogger() throws SQLFeatureNotSupportedException {
-        throw new SQLFeatureNotSupportedException("This class does not support this operation.");
-    }
-    
-    public Properties getProperties() {
-		return properties;
-	}
-    
-    public String getUrl() {
-		return url;
-	}
     
     public void setConnectionBuilderClass(Class<? extends ConnectionBuilder> connectionBuilderClass) {
 		this.connectionBuilderClass = connectionBuilderClass;

@@ -331,6 +331,7 @@ public class FileBasedJndiLoaderTest {
     /**
      * For testing commons-dbcp2's BasicDataSource. For monitoring with JMX you have to set jmxName. See the code. Follow the JMX name syntax: <a href=http://www.oracle.com/us/technologies/java/best-practices-jsp-136021.html>Java Management Extensions (JMX) - Best Practices</a>.
      */
+    @Test
     public void testDbcp2BasicDataSource() throws IOException, NamingException, SQLException {
 
         Hashtable env = new Hashtable();
@@ -349,22 +350,22 @@ public class FileBasedJndiLoaderTest {
         }
 
         Properties props = new Properties();
-        props.put("Sybase/type", "javax.sql.DataSource");
-        props.put("Sybase/driverClassName", "com.sybase.jdbc4.jdbc.SybDriver");
-        props.put("Sybase/url", "jdbc:sybase:Tds:b-sonar-omcdb.berlin.six.de:5000");
-        props.put("Sybase/username", "");
-        props.put("Sybase/password", "");
+        props.put("Derby/type", "javax.sql.DataSource");
+        props.put("Derby/driverClassName", "org.apache.derby.jdbc.ClientDriver");
+        props.put("Derby/url", "jdbc:derby://localhost:1528/sandBox");
+        props.put("Derby/username", "sandbox");
+        props.put("Derby/password", "sandbox");
         // Not working: jmxName is not in BasicDataSourceFactory.ALL_PROPERTIES and so will be not set. You have to set it after creation by calling setJmxName(). See below.
 //        props.put("Sybase/jmxName", "org.osjava.sj:type=DS");
         loader.load(props, ctxt);
-        BasicDataSource ds = (BasicDataSource) ctxt.lookup("Sybase");
+        BasicDataSource ds = (BasicDataSource) ctxt.lookup("Derby");
         ds.setJmxName("org.osjava.sj:type=DS");
 
         assertNotNull(ds);
 
         Connection c = ds.getConnection();
         Statement stmnt = c.createStatement();
-        stmnt.execute("select 1");
+        stmnt.execute("select 1 from Person");
         ResultSet rs = stmnt.getResultSet();
         rs.next();
         int result = rs.getInt(1);
