@@ -166,7 +166,7 @@ public class MemoryContextFactorySharedTest {
         contextEnv.put("org.osjava.sj.filenameToContext", "true");
         final FileBasedJndiLoader loader = new FileBasedJndiLoader(contextEnv);
         ctxt = new InitialContext(contextEnv);
-        String dsString = "bing::::foofoo::::Boo";
+        String dsString = "SJDataSource{url='foofoo', poolname='pool', useSharding=false}";
         try {
             File file = new File("src/test/resources/roots/java.properties");
             loader.load(file, ctxt);
@@ -193,7 +193,7 @@ public class MemoryContextFactorySharedTest {
     public void testTopLevelDataSource() throws NamingException {
         final FileBasedJndiLoader loader = new FileBasedJndiLoader(contextEnv);
         ctxt = new InitialContext(contextEnv);
-        String dsString = "org.gjt.mm.mysql.Driver::::jdbc:mysql://127.0.0.1/tmp::::sa";
+        String dsString = "SJDataSource{url='jdbc:mysql://127.0.0.1/tmp', poolname='pool', useSharding=false}";
         try {
             File file = new File("src/test/resources/roots/TopLevelDS.properties");
             loader.load( file, ctxt );

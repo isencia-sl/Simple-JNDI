@@ -150,7 +150,7 @@ public class FileBasedJndiLoaderTest {
             ne.printStackTrace();
         }
 
-        String dsString = "bing::::foofoo::::Boo";
+        String dsString = "SJDataSource{url='foofoo', poolname='pool', useSharding=false}";
         try {
             File file = new File("src/test/resources/roots/java.properties");
             loader.load( file, ctxt );
@@ -169,7 +169,7 @@ public class FileBasedJndiLoaderTest {
 
     @Test
     public void testTopLevelDataSource() {
-        String dsString = "org.gjt.mm.mysql.Driver::::jdbc:mysql://127.0.0.1/tmp::::sa";
+        String dsString = "SJDataSource{url='jdbc:mysql://127.0.0.1/tmp', poolname='pool', useSharding=false}";
         try {
             File file = new File("src/test/resources/roots/TopLevelDS.properties");
             loader.load( file, ctxt );
@@ -349,10 +349,12 @@ public class FileBasedJndiLoaderTest {
             ne.printStackTrace();
         }
 
+
         Properties props = new Properties();
         props.put("Derby/type", "javax.sql.DataSource");
-        props.put("Derby/driverClassName", "org.apache.derby.jdbc.ClientDriver");
-        props.put("Derby/url", "jdbc:derby://localhost:1528/sandBox");
+        props.put("Derby/driverClassName", "org.apache.derby.jdbc.EmbeddedDriver");
+        props.put("Derby/url", "jdbc:derby:memory:myDB;create=true");
+//        props.put("Derby/url", "jdbc:derby://localhost:1528/sandBox");
         props.put("Derby/username", "sandbox");
         props.put("Derby/password", "sandbox");
         // Not working: jmxName is not in BasicDataSourceFactory.ALL_PROPERTIES and so will be not set. You have to set it after creation by calling setJmxName(). See below.
@@ -365,7 +367,7 @@ public class FileBasedJndiLoaderTest {
 
         Connection c = ds.getConnection();
         Statement stmnt = c.createStatement();
-        stmnt.execute("select 1 from Person");
+        stmnt.execute("values 1");
         ResultSet rs = stmnt.getResultSet();
         rs.next();
         int result = rs.getInt(1);

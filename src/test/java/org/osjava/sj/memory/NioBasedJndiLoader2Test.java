@@ -171,7 +171,7 @@ public class NioBasedJndiLoader2Test {
 
     @Test
     public void testSubContext() {
-        String dsString = "bing::::foofoo::::Boo";
+        String dsString = "SJDataSource{url='foofoo', poolname='pool', useSharding=false}";
         Hashtable env = new Hashtable();
         // Werte aus jndi.properties überschreiben
         env.put(Context.INITIAL_CONTEXT_FACTORY, "org.osjava.sj.MemoryContextFactory");
@@ -201,7 +201,7 @@ public class NioBasedJndiLoader2Test {
 
     @Test
     public void testTopLevelDataSource() {
-        String dsString = "org.gjt.mm.mysql.Driver::::jdbc:mysql://127.0.0.1/tmp::::sa";
+        String dsString = "SJDataSource{url='jdbc:mysql://127.0.0.1/tmp', poolname='pool', useSharding=false}";
         Hashtable env = new Hashtable();
         // Werte aus jndi.properties überschreiben
         env.put(Context.INITIAL_CONTEXT_FACTORY, "org.osjava.sj.MemoryContextFactory");

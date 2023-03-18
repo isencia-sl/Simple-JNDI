@@ -152,5 +152,14 @@ public class SJDataSource implements DataSource {
 	public <T> T unwrap(Class<T> iface) throws SQLException {
         throw new SQLException("SJDataSource is not a wrapper.");
 	}
+
+	@Override
+	public String toString() {
+		return "SJDataSource{" +
+				"url='" + url + '\'' +
+				", poolname='" + poolname + '\'' +
+				", useSharding=" + useSharding +
+				'}';
+	}
 }
 

@@ -131,7 +131,7 @@ public class NioBasedJndiLoaderTest {
             ne.printStackTrace();
         }
 
-        String dsString = "bing::::foofoo::::Boo";
+        String dsString = "SJDataSource{url='foofoo', poolname='pool', useSharding=false}";
         try {
             File file = new File("src/test/resources/roots/java.properties");
             loader.load(file, ctxt, true);
@@ -150,7 +150,7 @@ public class NioBasedJndiLoaderTest {
 
     @Test
     public void testTopLevelDataSource() {
-        String dsString = "org.gjt.mm.mysql.Driver::::jdbc:mysql://127.0.0.1/tmp::::sa";
+        String dsString = "SJDataSource{url='jdbc:mysql://127.0.0.1/tmp', poolname='pool', useSharding=false}";
         try {
             File file = new File("src/test/resources/roots/TopLevelDS.properties");
             loader.load(file, ctxt, true);
