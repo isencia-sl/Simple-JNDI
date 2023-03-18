@@ -35,6 +35,7 @@ package org.osjava.sj.jndi;
 import org.apache.commons.lang.BooleanUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.osjava.sj.loader.JndiLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -143,9 +144,12 @@ public class MemoryContext implements Cloneable, Context  {
             return newInstance();
         }
         else {
+            if(name.size()==2 && name.getSuffix(1).toString().equals(envAsProperties.getProperty(JndiLoader.DELIMITER))) {
+                name = name.getPrefix(1);
+            }
             Name objName = name.getPrefix(1);
             objName = JndiUtils.toCompoundName(objName, envAsProperties);
-            if (name.size() > 1) { // A subcontext is lookuped.
+            if (name.size()>1) { // A subcontext is lookuped.
                 if (subContexts.containsKey(objName)) {
                     return subContexts.get(objName).lookup(name.getSuffix(1));
                 }
