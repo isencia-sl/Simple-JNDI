@@ -58,7 +58,7 @@ public class NioBasedJndiLoader extends JndiLoader {
      */
     public void loadJar(File jarFile, String rootDir, Context ctxt, boolean preserveFileNameAsContextName) throws IOException {
         Path path = Paths.get(jarFile.toURI());
-        try (FileSystem fs = FileSystems.newFileSystem(path,(Map<String,?>)null)) {
+        try (FileSystem fs = FileSystems.newFileSystem(path)) {
             Files.walkFileTree(fs.getPath(rootDir), new MySimpleFileVisitor(rootDir, ctxt, "", preserveFileNameAsContextName));
         }
     }
