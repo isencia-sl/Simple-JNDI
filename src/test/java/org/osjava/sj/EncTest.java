@@ -75,7 +75,7 @@ public class EncTest {
             ne.printStackTrace();
         }
 
-        String dsString = "bing::::foofoo::::Boo";
+        String dsString = "SJDataSource{url='foofoo', poolname='pool', useSharding=false}";
         Context envContext = (Context) initialContext.lookup("java:comp/env");
         DataSource ds = (DataSource) envContext.lookup("jdbc/myoracle");
         assertEquals( dsString, ds.toString() );

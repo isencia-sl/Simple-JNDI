@@ -139,7 +139,7 @@ public class SimpleJndiTest {
         env.put("org.osjava.sj.root", "src/test/resources/roots/datasourceNamespaced.properties");
         env.put("org.osjava.sj.filenameToContext", "true");
         ctxt = new InitialContext(env);
-        String dsString = "org.gjt.mm.mysql.Driver::::jdbc:mysql://127.0.0.1/tmp::::sa";
+        String dsString = "SJDataSource{url='jdbc:mysql://127.0.0.1/tmp', poolname='pool', useSharding=false}";
         DataSource fooDS = (DataSource) ctxt.lookup("datasourceNamespaced.com.foo.FooDS");
         DataSource barDS = (DataSource) ctxt.lookup("datasourceNamespaced.com.foo.BarDS");
         assertEquals( dsString, fooDS.toString() );

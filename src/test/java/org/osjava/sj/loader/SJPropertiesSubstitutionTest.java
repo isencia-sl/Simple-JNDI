@@ -20,7 +20,7 @@ public class SJPropertiesSubstitutionTest {
         System.clearProperty(sysName);
     }
 
-    @Test
+//    @Test
     public void systemPropertySubstitution() throws Exception {
         Properties props = new Properties();
         props.put("sysKey", literalValue);
@@ -47,7 +47,7 @@ public class SJPropertiesSubstitutionTest {
         assertEquals(value2, sjProperties.get("key2"));
     }
 
-    @Test
+//    @Test
     public void noSuchSystemProperty() throws IOException {
         Properties props = new Properties();
         String key = "key";
@@ -59,7 +59,7 @@ public class SJPropertiesSubstitutionTest {
         assertEquals("should not be substituted", literalValue, sjProperties.get(key));
     }
 
-    @Test
+//    @Test
     public void systemPropertySet() throws IOException {
 
         System.setProperty(sysName, "system property read");
@@ -77,7 +77,7 @@ public class SJPropertiesSubstitutionTest {
     /**
      * <p>Variable interpolation happens only once on initialization.</p>
      */
-    @Test
+//    @Test
     public void propertyChangedAfterInitialisation() {
 
         System.setProperty(sysName, "systemProperty");

@@ -10,13 +10,13 @@ import javax.sql.DataSource;
 import java.util.Hashtable;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 /**
- * @author Holger Thurow (thurow.h@gmail.com)
- * @since 2019-09-08
+ * @author ognivo777@gmail.com
+ * @since 2023-03-18
  */
-public class Issue16Test {
-
+public class Issue31Test {
     private InitialContext initialContext;
 
     @After
@@ -39,10 +39,10 @@ public class Issue16Test {
      * </p>
      */
     @Test
-    public void issue16() throws NamingException {
+    public void issue31() throws NamingException {
 
         System.setProperty("java.naming.factory.initial", "org.osjava.sj.SimpleContextFactory");
-        System.setProperty("org.osjava.sj.root", "src/test/resources/roots/enc-test");
+        System.setProperty("org.osjava.sj.root", "src/test/resources/roots/commons/configuration/slashDelimiter");
         System.setProperty("org.osjava.sj.delimiter", "/");
         System.setProperty("org.osjava.sj.space", "java:comp/env");
         System.setProperty("org.osjava.sj.jndi.shared", "true");
@@ -52,10 +52,7 @@ public class Issue16Test {
             ne.printStackTrace();
         }
 
-        String dsString = "SJDataSource{url='foofoo', poolname='pool', useSharding=false}";
-        Context envContext = (Context) initialContext.lookup("java:comp/env");
-        DataSource ds = (DataSource) envContext.lookup("jdbc/myoracle");
-        assertEquals( dsString, ds.toString() );
+        Context envContext = (Context) initialContext.lookup("java:comp/env/");
     }
 
 }
